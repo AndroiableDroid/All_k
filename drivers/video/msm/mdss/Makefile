@@ -1,3 +1,7 @@
+ifeq ($(TARGET_PRODUCT),namek_msm8916_64)
+EXTRA_CFLAGS += -D NAMEK_PWM_LOW
+endif
+
 ccflags-y += -I$(src)
 
 mdss-mdp3-objs = mdp3.o mdp3_dma.o mdp3_ctrl.o dsi_status_v2.o

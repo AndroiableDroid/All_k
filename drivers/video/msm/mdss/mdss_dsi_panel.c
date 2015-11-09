@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -9,6 +9,9 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+
+/* #define DEBUG 1 */
+#define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -1535,6 +1538,11 @@ static int mdss_panel_parse_dt(struct device_node *np,
 		else if (!strcmp(data, "rgb_swap_gbr"))
 			pinfo->mipi.rgb_swap = DSI_RGB_SWAP_GBR;
 	}
+
+	/* force clk lane high speed for mobee */
+	pinfo->mipi.force_clk_lane_hs = of_property_read_bool(np,
+		"qcom,mdss-dsi-clk-lane-hs");
+
 	pinfo->mipi.data_lane0 = of_property_read_bool(np,
 		"qcom,mdss-dsi-lane-0-state");
 	pinfo->mipi.data_lane1 = of_property_read_bool(np,
@@ -1694,6 +1702,7 @@ int mdss_dsi_panel_init(struct device_node *node,
 
 	pinfo->dynamic_switch_pending = false;
 	pinfo->is_lpm_mode = false;
+	pinfo->esd_rdy = false;
 
 	ctrl_pdata->on = mdss_dsi_panel_on;
 	ctrl_pdata->off = mdss_dsi_panel_off;

@@ -280,15 +280,24 @@ static int enable_spk_ext_pa(struct snd_soc_codec *codec, int enable)
 {
 	struct snd_soc_card *card = codec->card;
 	struct msm8916_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
+	int ret = 0;
 
 	if (!gpio_is_valid(pdata->spk_ext_pa_gpio)) {
 		pr_err("%s: Invalid gpio: %d\n", __func__,
 			pdata->spk_ext_pa_gpio);
-		return false;
+		return -EINVAL;
 	}
 
 	pr_debug("%s: %s external speaker PA\n", __func__,
 		enable ? "Enable" : "Disable");
+	ret = pinctrl_select_state(pinctrl_info.pinctrl,
+				pinctrl_info.cdc_lines_act);
+	if (ret < 0) {
+		pr_err("%s: failed to active cdc gpio's\n",
+				__func__);
+		return -EINVAL;
+	}
+
 	gpio_set_value_cansleep(pdata->spk_ext_pa_gpio, enable);
 
 	return 0;
@@ -1346,14 +1355,21 @@ static void *def_msm8x16_wcd_mbhc_cal(void)
 	 * all btn_low corresponds to threshold for current source
 	 * all bt_high corresponds to threshold for Micbias
 	 */
-	btn_low[0] = 25;
-	btn_high[0] = 25;
-	btn_low[1] = 50;
-	btn_high[1] = 50;
-	btn_low[2] = 75;
-	btn_high[2] = 75;
-	btn_low[3] = 112;
-	btn_high[3] = 112;
+#ifdef MIRAGEPLUS
+	btn_low[0] = 100;
+	btn_high[0] = 100;
+	btn_low[1] = 101;
+	btn_high[1] = 101;
+#else
+	btn_low[0] = 75;
+	btn_high[0] = 75;
+	btn_low[1] = 100;
+	btn_high[1] = 100;
+#endif
+	btn_low[2] = 240;
+	btn_high[2] = 240;
+	btn_low[3] = 500;
+	btn_high[3] = 500;
 	btn_low[4] = 137;
 	btn_high[4] = 137;
 

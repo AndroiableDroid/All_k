@@ -742,6 +742,7 @@ void mdss_dsi_err_intr_ctrl(struct mdss_dsi_ctrl_pdata *ctrl, u32 mask,
 
 	MIPI_OUTP(ctrl->ctrl_base + 0x0110, intr); /* DSI_INTL_CTRL */
 }
+EXPORT_SYMBOL(mdss_dsi_err_intr_ctrl);
 
 void mdss_dsi_controller_cfg(int enable,
 			     struct mdss_panel_data *pdata)
@@ -1981,7 +1982,7 @@ static int dsi_event_thread(void *data)
 	struct mdss_dsi_ctrl_pdata *ctrl;
 	unsigned long flag;
 	struct sched_param param;
-	u32 todo = 0, ln_status;
+	u32 todo = 0, ln_status, force_clk_ln_hs;
 	int ret;
 
 	param.sched_priority = 16;
@@ -2037,9 +2038,12 @@ static int dsi_event_thread(void *data)
 			 * clock lane is not in Stop State.
 			 */
 			ln_status = MIPI_INP(ctrl->ctrl_base + 0x00a8);
+			force_clk_ln_hs = (MIPI_INP(ctrl->ctrl_base + 0x00ac) & BIT(28));
+
 			pr_debug("%s: lane_status: 0x%x\n",
 				       __func__, ln_status);
 			if (ctrl->recovery
+					&& !(force_clk_ln_hs)
 					&& (ln_status
 						& DSI_DATA_LANES_STOP_STATE)
 					&& !(ln_status
@@ -2048,8 +2052,8 @@ static int dsi_event_thread(void *data)
 								__func__);
 				mdss_dsi_clk_ctrl(ctrl, DSI_ALL_CLKS, 1);
 				mdss_dsi_ctl_phy_reset(ctrl);
-				mdss_dsi_err_intr_ctrl(ctrl,
-						DSI_INTR_ERROR_MASK, 1);
+			//	mdss_dsi_err_intr_ctrl(ctrl,
+			//			DSI_INTR_ERROR_MASK, 1);
 				mdss_dsi_clk_ctrl(ctrl, DSI_ALL_CLKS, 0);
 			}
 			mutex_unlock(&dsi_mtx);
@@ -2065,9 +2069,9 @@ static int dsi_event_thread(void *data)
 			spin_unlock_irqrestore(&ctrl->mdp_lock, flag);
 
 			/* enable dsi error interrupt */
-			mdss_dsi_clk_ctrl(ctrl, DSI_ALL_CLKS, 1);
-			mdss_dsi_err_intr_ctrl(ctrl, DSI_INTR_ERROR_MASK, 1);
-			mdss_dsi_clk_ctrl(ctrl, DSI_ALL_CLKS, 0);
+		//	mdss_dsi_clk_ctrl(ctrl, DSI_ALL_CLKS, 1);
+		//	mdss_dsi_err_intr_ctrl(ctrl, DSI_INTR_ERROR_MASK, 1);
+		//	mdss_dsi_clk_ctrl(ctrl, DSI_ALL_CLKS, 0);
 		}
 
 	}

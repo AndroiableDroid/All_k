@@ -68,6 +68,21 @@ enum {
 #define HPH_PA_ENABLE true
 #define HPH_PA_DISABLE false
 
+#if 0
+#ifdef pr_fmt 
+#undef pr_fmt
+#define pr_fmt(fmt) "<audio log> %s, %d :" fmt, __func__,__LINE__
+#else
+#define pr_fmt(fmt) "<audio log> %s, %d :" fmt, __func__,__LINE__
+#endif
+#ifdef  pr_debug
+#undef pr_debug
+#define pr_debug(fmt,...)  printk(KERN_ERR pr_fmt(fmt), ##__VA_ARGS__) 
+#else
+#define pr_debug(fmt,...)  printk(KERN_ERR pr_fmt(fmt), ##__VA_ARGS__) 
+#endif
+#endif
+
 static int cpe_debug_mode;
 module_param(cpe_debug_mode, int,
 	     S_IRUGO | S_IWUSR | S_IWGRP);
@@ -3436,6 +3451,7 @@ static int tomtom_codec_enable_micbias(struct snd_soc_dapm_widget *w,
 		e_post_on = WCD9XXX_EVENT_POST_MICBIAS_1_ON;
 		e_post_off = WCD9XXX_EVENT_POST_MICBIAS_1_OFF;
 	} else if (strnstr(w->name, "MIC BIAS2", sizeof("MIC BIAS2"))) {
+	       pr_debug("*********************** \n");
 		micb_ctl_reg = TOMTOM_A_MICB_2_CTL;
 		micb_int_reg = TOMTOM_A_MICB_2_INT_RBIAS;
 		cfilt_sel_val = tomtom->resmgr.pdata->micbias.bias2_cfilt_sel;
@@ -3502,6 +3518,7 @@ static int tomtom_codec_enable_micbias(struct snd_soc_dapm_widget *w,
 			snd_soc_update_bits(codec, micb_ctl_reg, 1 << w->shift,
 					    1 << w->shift);
 		}
+		pr_debug("********read micb_ctl_reg = 0x%x\n********\n",snd_soc_read(codec,micb_ctl_reg));
 		break;
 	case SND_SOC_DAPM_POST_PMU:
 		usleep_range(20000, 20100);
@@ -3555,7 +3572,8 @@ static int tomtom_enable_mbhc_micbias(struct snd_soc_codec *codec, bool enable,
 				enum wcd9xxx_micbias_num micb_num)
 {
 	int rc;
-
+      
+      pr_debug(" **** enable  = %d***\n",enable);
 	if (micb_num != MBHC_MICBIAS2) {
 		dev_err(codec->dev, "%s: Unsupported micbias, micb_num=%d\n",
 			__func__, micb_num);

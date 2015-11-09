@@ -1,4 +1,6 @@
-
+ifeq ($(TARGET_PRODUCT),namek_msm8916_64)
+	EXTRA_CFLAGS += -DBLINK_BRIGHTNESS
+endif
 # LED Core
 obj-$(CONFIG_NEW_LEDS)			+= led-core.o
 obj-$(CONFIG_LEDS_CLASS)		+= led-class.o
@@ -58,6 +60,8 @@ obj-$(CONFIG_LEDS_LM355x)		+= leds-lm355x.o
 obj-$(CONFIG_LEDS_BLINKM)		+= leds-blinkm.o
 obj-$(CONFIG_LEDS_MSM_GPIO_FLASH)	+= leds-msm-gpio-flash.o
 obj-$(CONFIG_LEDS_AW2013)		+= leds-aw2013.o
+obj-$(CONFIG_LEDS_aw2013rgb)	+= aw2013_rgb.o
+obj-$(CONFIG_LEDS_KTD20XX)  += ktd20xx.o
 
 # LED SPI Drivers
 obj-$(CONFIG_LEDS_DAC124S085)		+= leds-dac124s085.o

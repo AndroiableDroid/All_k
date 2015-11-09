@@ -19,7 +19,8 @@
 	compatible = "qcom,msm8909";
 	qcom,msm-id =	<245 0>,
 			<258 0>,
-			<265 0>;
+			<265 0>,
+			<275 0>;
 	interrupt-parent = <&intc>;
 
 	chosen {
@@ -822,7 +823,7 @@
 		compatible = "qcom,android-usb";
 		reg = <0x086000c8 0xc8>;
 		qcom,pm-qos-latency = <2 1001 12701>;
-		qcom,streaming-func = "mtp";
+		qcom,streaming-func = "rndis","mtp";
 	};
 
 	qcom,usbbam@78c4000 {

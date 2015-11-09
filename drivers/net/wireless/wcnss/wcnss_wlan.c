@@ -47,6 +47,7 @@
 #define CTRL_DEVICE "wcnss_ctrl"
 #define VERSION "1.01"
 #define WCNSS_PIL_DEVICE "wcnss"
+#define WCNSS_MODULE_NAME "wcn3620"
 
 #define WCNSS_PINCTRL_STATE_DEFAULT "wcnss_default"
 #define WCNSS_PINCTRL_STATE_SLEEP "wcnss_sleep"
@@ -56,6 +57,7 @@
 #define WCNSS_ENABLE_PC_LATENCY	PM_QOS_DEFAULT_VALUE
 #define WCNSS_PM_QOS_TIMEOUT	15000
 #define IS_CAL_DATA_PRESENT     0
+#define WAIT_FOR_CBC_IND	2
 
 /* module params */
 #define WCNSS_CONFIG_UNSPECIFIED (-1)
@@ -540,6 +542,22 @@ static ssize_t wcnss_version_show(struct device *dev,
 
 static DEVICE_ATTR(wcnss_version, S_IRUSR,
 		wcnss_version_show, NULL);
+
+//added by tinypi for wifi ic sysfs
+static ssize_t wcnss_name_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	if (!penv)
+		return -ENODEV;
+
+	return scnprintf(buf, PAGE_SIZE, "%s", WCNSS_MODULE_NAME);
+}
+
+static DEVICE_ATTR(wcnss_name, S_IRUSR,
+		wcnss_name_show, NULL);
+
+//added by tinypi for wifi ic sysfs end
+
 
 void wcnss_riva_dump_pmic_regs(void)
 {
@@ -1142,6 +1160,12 @@ static int wcnss_create_sysfs(struct device *dev)
 	if (ret)
 		goto remove_thermal;
 
+	//added by tinypi for wifi ic sysfs
+	ret = device_create_file(dev, &dev_attr_wcnss_name);
+	if (ret)
+		goto remove_thermal;
+	//added by tinypi for wifi ic sysfs end
+
 	ret = device_create_file(dev, &dev_attr_wcnss_mac_addr);
 	if (ret)
 		goto remove_version;
@@ -1516,7 +1540,7 @@ int wcnss_device_ready(void)
 }
 EXPORT_SYMBOL(wcnss_device_ready);
 
-int wcnss_cbc_complete(void)
+bool wcnss_cbc_complete(void)
 {
 	if (penv && penv->pdev && penv->is_cbc_done &&
 		!wcnss_device_is_shutdown())
@@ -2160,6 +2184,8 @@ static void wcnssctrl_rx_handler(struct work_struct *worker)
 		fw_status = wcnss_fw_status();
 		pr_debug("wcnss: received WCNSS_NVBIN_DNLD_RSP from ccpu %u\n",
 			fw_status);
+		if (fw_status != WAIT_FOR_CBC_IND)
+			penv->is_cbc_done = 1;
 		wcnss_setup_vbat_monitoring();
 		break;
 

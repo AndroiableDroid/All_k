@@ -191,9 +191,12 @@ static void mdss_mdp_video_intf_recovery(void *data, int event)
 	if (delay > POLL_TIME_USEC_FOR_LN_CNT)
 		delay = POLL_TIME_USEC_FOR_LN_CNT;
 
+	mutex_lock(&ctl->offlock);
 	while (1) {
-		if (!ctl || !ctx || !ctx->timegen_en) {
-			pr_warn("Target is in suspend state\n");
+		if (!ctl || ctl->mfd->shutdown_pending || !ctx ||
+				!ctx->timegen_en) {
+			pr_warn("Target is in suspend or shutdown pending\n");
+			mutex_unlock(&ctl->offlock);
 			return;
 		}
 
@@ -203,6 +206,7 @@ static void mdss_mdp_video_intf_recovery(void *data, int event)
 			(active_lns_cnt + min_ln_cnt))) {
 			pr_debug("%s, Needed lines left line_cnt=%d\n",
 						__func__, line_cnt);
+			mutex_unlock(&ctl->offlock);
 			return;
 		} else {
 			pr_warn("line count is less. line_cnt = %d\n",
@@ -310,7 +314,7 @@ static int mdss_mdp_video_timegen_setup(struct mdss_mdp_ctl *ctl,
 
 	mdp_video_write(ctx, MDSS_MDP_REG_INTF_BORDER_COLOR, p->border_clr);
 	mdp_video_write(ctx, MDSS_MDP_REG_INTF_UNDERFLOW_COLOR,
-			   p->underflow_clr);
+			   /*p->underflow_clr*/0x0f);
 	mdp_video_write(ctx, MDSS_MDP_REG_INTF_HSYNC_SKEW, p->hsync_skew);
 	mdp_video_write(ctx, MDSS_MDP_REG_INTF_POLARITY_CTL, polarity_ctl);
 	mdp_video_write(ctx, MDSS_MDP_REG_INTF_FRAME_LINE_COUNT_EN, 0x3);

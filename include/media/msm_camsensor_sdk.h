@@ -28,7 +28,7 @@
 #define MAX_ACTUATOR_SCENARIO     8
 #define MAX_ACT_MOD_NAME_SIZE     32
 #define MAX_ACT_NAME_SIZE         32
-#define MAX_ACTUATOR_INIT_SET     12
+#define MAX_ACTUATOR_INIT_SET     32
 #define MAX_I2C_REG_SET           12
 
 #define MAX_NAME_SIZE             32
@@ -149,6 +149,7 @@ enum actuator_type {
 	ACTUATOR_VCM,
 	ACTUATOR_PIEZO,
 	ACTUATOR_HVCM,
+        ACTUATOR_CLOSE_LOOP,
 };
 
 enum msm_flash_driver_type {

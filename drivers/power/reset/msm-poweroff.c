@@ -51,16 +51,19 @@ static bool scm_deassert_ps_hold_supported;
 /* Download mode master kill-switch */
 static void __iomem *msm_ps_hold;
 static phys_addr_t tcsr_boot_misc_detect;
+#define EDL_MODE_PROP "qcom,msm-imem-emergency_download_mode"
+static void *emergency_dload_mode_addr;
+static bool scm_dload_supported;
 
 #ifdef CONFIG_MSM_DLOAD_MODE
-#define EDL_MODE_PROP "qcom,msm-imem-emergency_download_mode"
+//#define EDL_MODE_PROP "qcom,msm-imem-emergency_download_mode"
 #define DL_MODE_PROP "qcom,msm-imem-download_mode"
 
 static int in_panic;
 static void *dload_mode_addr;
 static bool dload_mode_enabled;
 static void *emergency_dload_mode_addr;
-static bool scm_dload_supported;
+//static bool scm_dload_supported;
 
 static int dload_set(const char *val, struct kernel_param *kp);
 static int download_mode = 1;
@@ -69,7 +72,10 @@ module_param_call(download_mode, dload_set, param_get_int,
 static int panic_prep_restart(struct notifier_block *this,
 			      unsigned long event, void *ptr)
 {
-	in_panic = 1;
+/*we don't need the panic fall into ramdump mode in mp --kaiyu.wang*/
+        //in_panic = 1;
+        in_panic = 0;
+/*end*/
 	return NOTIFY_DONE;
 }
 
@@ -171,9 +177,52 @@ static int dload_set(const char *val, struct kernel_param *kp)
 #else
 #define set_dload_mode(x) do {} while (0)
 
+int scm_set_dload_mode(int arg1, int arg2)
+{
+	struct scm_desc desc = {
+		.args[0] = arg1,
+		.args[1] = arg2,
+		.arginfo = SCM_ARGS(2),
+	};
+
+	if (!scm_dload_supported) {
+		if (tcsr_boot_misc_detect)
+			return scm_io_write(tcsr_boot_misc_detect, arg1);
+
+		return 0;
+	}
+
+	if (!is_scm_armv8())
+		return scm_call_atomic2(SCM_SVC_BOOT, SCM_DLOAD_CMD, arg1,
+					arg2);
+
+	return scm_call2_atomic(SCM_SIP_FNID(SCM_SVC_BOOT, SCM_DLOAD_CMD),
+				&desc);
+}
+
 static void enable_emergency_dload_mode(void)
 {
-	pr_err("dload mode is not enabled on target\n");
+	int ret;
+
+	if (emergency_dload_mode_addr) {
+		__raw_writel(EMERGENCY_DLOAD_MAGIC1,
+				emergency_dload_mode_addr);
+		__raw_writel(EMERGENCY_DLOAD_MAGIC2,
+				emergency_dload_mode_addr +
+				sizeof(unsigned int));
+		__raw_writel(EMERGENCY_DLOAD_MAGIC3,
+				emergency_dload_mode_addr +
+				(2 * sizeof(unsigned int)));
+
+		/* Need disable the pmic wdt, then the emergency dload mode
+		 * will not auto reset. */
+		qpnp_pon_wd_config(0);
+		mb();
+	}
+
+	ret = scm_set_dload_mode(SCM_EDLOAD_MODE, 0);
+	if (ret)
+		pr_err("Failed to set secure EDLOAD mode: %d\n", ret);
 }
 
 static bool get_dload_mode(void)
@@ -214,6 +263,8 @@ static void halt_spmi_pmic_arbiter(void)
 
 static void msm_restart_prepare(const char *cmd)
 {
+	bool need_warm_reset = false;
+
 #ifdef CONFIG_MSM_DLOAD_MODE
 
 	/* Write download mode flags if we're panic'ing
@@ -225,18 +276,44 @@ static void msm_restart_prepare(const char *cmd)
 			(in_panic || restart_mode == RESTART_DLOAD));
 #endif
 
+	need_warm_reset = (get_dload_mode() ||
+				(cmd != NULL && cmd[0] != '\0'));
+
+	if (qpnp_pon_check_hard_reset_stored()) {
+		/* Set warm reset as true when device is in dload mode
+		 *  or device doesn't boot up into recovery, bootloader or rtc.
+		 */
+		if (get_dload_mode() ||
+			((cmd != NULL && cmd[0] != '\0') &&
+			strcmp(cmd, "recovery") &&
+			strcmp(cmd, "bootloader") &&
+			strcmp(cmd, "rtc")))
+			need_warm_reset = true;
+	}
+
 	/* Hard reset the PMIC unless memory contents must be maintained. */
-	if (get_dload_mode() || (cmd != NULL && cmd[0] != '\0'))
+	if (need_warm_reset) {
 		qpnp_pon_system_pwr_off(PON_POWER_OFF_WARM_RESET);
-	else
+	} else {
+#if 0
 		qpnp_pon_system_pwr_off(PON_POWER_OFF_HARD_RESET);
+#else
+        qpnp_pon_system_pwr_off(PON_POWER_OFF_WARM_RESET);
+#endif
+	}
 
 	if (cmd != NULL) {
 		if (!strncmp(cmd, "bootloader", 10)) {
+			qpnp_pon_set_restart_reason(
+				PON_RESTART_REASON_BOOTLOADER);
 			__raw_writel(0x77665500, restart_reason);
 		} else if (!strncmp(cmd, "recovery", 8)) {
+			qpnp_pon_set_restart_reason(
+				PON_RESTART_REASON_RECOVERY);
 			__raw_writel(0x77665502, restart_reason);
 		} else if (!strcmp(cmd, "rtc")) {
+			qpnp_pon_set_restart_reason(
+				PON_RESTART_REASON_RTC);
 			__raw_writel(0x77665503, restart_reason);
 		} else if (!strncmp(cmd, "oem-", 4)) {
 			unsigned long code;
@@ -364,8 +441,8 @@ static int msm_restart_probe(struct platform_device *pdev)
 	int ret = 0;
 
 #ifdef CONFIG_MSM_DLOAD_MODE
-	if (scm_is_call_available(SCM_SVC_BOOT, SCM_DLOAD_CMD) > 0)
-		scm_dload_supported = true;
+	//if (scm_is_call_available(SCM_SVC_BOOT, SCM_DLOAD_CMD) > 0)
+	//	scm_dload_supported = true;
 
 	atomic_notifier_chain_register(&panic_notifier_list, &panic_blk);
 	np = of_find_compatible_node(NULL, NULL, DL_MODE_PROP);
@@ -377,6 +454,12 @@ static int msm_restart_probe(struct platform_device *pdev)
 			pr_err("unable to map imem DLOAD offset\n");
 	}
 
+
+
+#endif
+	if (scm_is_call_available(SCM_SVC_BOOT, SCM_DLOAD_CMD) > 0)
+        	scm_dload_supported = true;
+
 	np = of_find_compatible_node(NULL, NULL, EDL_MODE_PROP);
 	if (!np) {
 		pr_err("unable to find DT imem EDLOAD mode node\n");
@@ -386,7 +469,6 @@ static int msm_restart_probe(struct platform_device *pdev)
 			pr_err("unable to map imem EDLOAD mode offset\n");
 	}
 
-#endif
 	np = of_find_compatible_node(NULL, NULL,
 				"qcom,msm-imem-restart_reason");
 	if (!np) {
@@ -423,8 +505,9 @@ static int msm_restart_probe(struct platform_device *pdev)
 	return 0;
 
 err_restart_reason:
-#ifdef CONFIG_MSM_DLOAD_MODE
 	iounmap(emergency_dload_mode_addr);
+#ifdef CONFIG_MSM_DLOAD_MODE
+
 	iounmap(dload_mode_addr);
 #endif
 	return ret;

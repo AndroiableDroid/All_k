@@ -25,6 +25,14 @@
 	bosch@18 { /* Accelerometer sensor */
 		bosch,place = <5>;
 	};
+
+	mpu6050@68 { /* Gyroscope and accelerometer sensor combo */
+		invn,place = "Landscape Left";
+	};
+
+	memsic@30 { /* Magnetic field sensor */
+		memsic,dir = "reverse-x-axis-rightward";
+	};
 };
 
 &i2c_4 {
@@ -40,8 +48,10 @@
 		qcom,float-voltage-mv = <4400>;
 		qcom,charging-timeout = <1536>;
 		qcom,recharge-thresh-mv = <100>;
+		qcom,fastchg-ma = <2500>;
 		regulator-name = "smb1357_otg_vreg";
 		qcom,soft-vfloat-comp-disabled;
+		qcom,soft-current-comp-disabled;
 		qcom,thermal-mitigation = <1500 700 600 0>;
 
 		qcom,bms-psy-name = "bms";
@@ -49,6 +59,24 @@
 		qcom,inhibit-disabled;
 		qcom,bms-controlled-charging;
 	};
+
+	sy8827: sy8827-regulator@70 {
+		compatible = "silergy,sy8827-regulator";
+		reg = <0x70>;
+		fairchild,backup-vsel = <1>;
+		regulator-min-microvolt = <1050000>;
+		regulator-max-microvolt = <1350000>;
+		regulator-ramp-delay = <1250>;
+		pintrl-names = "default";
+		pinctrl-0 = <&ext_buck_vsel_default>;
+		fairchild,vsel-gpio = <&msm_gpio 111 1>;
+		fairchild,restore-reg;
+		fairchild,disable-suspend;
+	};
+};
+
+&apc_vreg_corner {
+	vdd-apc-optional-prim-supply = <&sy8827>;
 };
 
 &pm8916_chg {
@@ -68,6 +96,12 @@
 	status = "ok";
 	qcom,resume-soc = <99>;
 	qcom,battery-data = <&qrd_batterydata>;
+};
+
+&pm8916_vadc {
+	chan@30 {
+		qcom,scale-function = <14>;
+	};
 };
 
 &usb_otg {

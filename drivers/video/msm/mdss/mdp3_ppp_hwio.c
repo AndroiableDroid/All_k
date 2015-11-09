@@ -1217,11 +1217,7 @@ int config_ppp_op_mode(struct ppp_blit_op *blit_op)
 	} else {
 		blit_op->bg = blit_op->dst;
 	}
-        /* Cache smart blit BG layer info */
-	if (blit_op->mdp_op & MDPOP_SMART_BLIT)
-                bg_img_param = blit_op->src;
-
-        /* Jumping from Y-Plane to Chroma Plane */
+	/* Jumping from Y-Plane to Chroma Plane */
 	/* first pixel addr calculation */
 	mdp_adjust_start_addr(blit_op, &blit_op->src, sv_slice,
 			      sh_slice, LAYER_FG);
@@ -1229,6 +1225,10 @@ int config_ppp_op_mode(struct ppp_blit_op *blit_op)
 			      dh_slice, LAYER_BG);
 	mdp_adjust_start_addr(blit_op, &blit_op->dst, dv_slice,
 			      dh_slice, LAYER_FB);
+
+        /* Cache smart blit BG layer info */
+	if (blit_op->mdp_op & MDPOP_SMART_BLIT)
+                bg_img_param = blit_op->src;
 
 	config_ppp_scale(blit_op, &ppp_operation_reg);
 

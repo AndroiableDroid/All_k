@@ -2425,6 +2425,7 @@ enum codecs {
 static struct snd_soc_card snd_soc_card_msm[MAX_CODECS];
 static struct snd_soc_card snd_card_msm;
 
+#if 0
 static bool msm8939_swap_gnd_mic(struct snd_soc_codec *codec)
 {
 	struct snd_soc_card *card = codec->card;
@@ -2441,6 +2442,7 @@ static bool msm8939_swap_gnd_mic(struct snd_soc_codec *codec)
 	gpio_set_value_cansleep(pdata->us_euro_gpio, !value);
 	return true;
 }
+#endif
 
 static int cdc_slim_get_pinctrl(struct platform_device *pdev,
 			struct msm8939_asoc_mach_data *pdata)
@@ -2724,6 +2726,8 @@ static int msm8939_asoc_machine_probe(struct platform_device *pdev)
 		pr_err("failed to get the pdm gpios\n");
 		goto err;
 	}
+	
+	#if 0
 	/* Parse US-Euro gpio info from DT. Report no error if us-euro
 	 * entry is not found in DT file as some targets do not support
 	 * US-Euro detection
@@ -2739,7 +2743,8 @@ static int msm8939_asoc_machine_probe(struct platform_device *pdev)
 			"qcom,us-euro-gpios", pdata->us_euro_gpio);
 		wcd9xxx_mbhc_cfg.swap_gnd_mic = msm8939_swap_gnd_mic;
 	}
-
+      #endif
+	  
 	return 0;
 err:
 	cancel_delayed_work_sync(&pdata->hs_detect_dwork);

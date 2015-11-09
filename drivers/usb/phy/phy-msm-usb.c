@@ -11,6 +11,8 @@
  *
  */
 
+//#define DEBUG 1
+
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
@@ -52,6 +54,12 @@
 
 #include <linux/msm-bus.h>
 
+extern void setAcInstat(void);//wuboadd
+extern void acquire_AC_charger_wakelock(void);
+extern void set_android_charging_enable(void);
+extern void smb1360_set_usb_current_call(int current_limit_enable);
+extern int first_mic;
+
 #define MSM_USB_BASE	(motg->regs)
 #define MSM_USB_PHY_CSR_BASE (motg->phy_csr_regs)
 
@@ -75,6 +83,8 @@
 #define USB_PHY_VDD_DIG_VOL_MAX	1320000 /* uV */
 
 #define USB_SUSPEND_DELAY_TIME	(500 * HZ/1000) /* 500 msec */
+
+#define USB_DEFAULT_SYSTEM_CLOCK 80000000	/* 80 MHz */
 
 enum msm_otg_phy_reg_mode {
 	USB_PHY_REG_OFF,
@@ -1799,6 +1809,20 @@ static int msm_otg_notify_chg_type(struct msm_otg *motg)
 		pr_err("No USB power supply registered!\n");
 		return -EINVAL;
 	}
+
+	//wuboadd start
+    if(charger_type == POWER_SUPPLY_TYPE_USB_DCP){
+		set_android_charging_enable();
+		setAcInstat();
+		if (1 == first_mic) {
+			smb1360_set_usb_current_call(1);
+		}
+		acquire_AC_charger_wakelock();
+    }
+	if(charger_type == POWER_SUPPLY_TYPE_USB){
+		set_android_charging_enable();	
+	}
+	//wuboadd end
 
 	pr_debug("setting usb power supply type %d\n", charger_type);
 	power_supply_set_supply_type(psy, charger_type);
@@ -4551,6 +4575,7 @@ static struct platform_device *msm_otg_add_pdev(
 		ci_pdata.l1_supported = otg_pdata->l1_supported;
 		ci_pdata.enable_ahb2ahb_bypass =
 				otg_pdata->enable_ahb2ahb_bypass;
+		ci_pdata.system_clk = otg_pdata->system_clk;
 		retval = platform_device_add_data(pdev, &ci_pdata,
 			sizeof(ci_pdata));
 		if (retval)
@@ -4989,7 +5014,8 @@ static int msm_otg_probe(struct platform_device *pdev)
 	 * Get Max supported clk frequency for USB Core CLK and request
 	 * to set the same.
 	 */
-	motg->core_clk_rate = clk_round_rate(motg->core_clk, LONG_MAX);
+	motg->core_clk_rate = clk_round_rate(motg->core_clk,
+		USB_DEFAULT_SYSTEM_CLOCK);
 	if (IS_ERR_VALUE(motg->core_clk_rate)) {
 		dev_err(&pdev->dev, "fail to get core clk max freq.\n");
 	} else {
@@ -5132,6 +5158,8 @@ static int msm_otg_probe(struct platform_device *pdev)
 			msm_otg_bus_vote(motg, USB_MIN_PERF_VOTE);
 		}
 	}
+
+	pdata->system_clk = motg->core_clk;
 
 	ret = msm_otg_bus_freq_get(motg->phy.dev, motg);
 	if (ret)

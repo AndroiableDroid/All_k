@@ -39,8 +39,11 @@ static int32_t msm_ois_write_settings(struct msm_ois_ctrl_t *o_ctrl,
 {
 	int32_t rc = -EFAULT;
 	int32_t i = 0;
+	int32_t j = 0;
+
 	struct msm_camera_i2c_seq_reg_array reg_setting;
-	CDBG("Enter\n");
+	j= size;
+	CDBG("Enter [size:%d]\n", j);
 
 	for (i = 0; i < size; i++) {
 		switch (settings[i].i2c_operation) {
@@ -73,6 +76,10 @@ static int32_t msm_ois_write_settings(struct msm_ois_ctrl_t *o_ctrl,
 					reg_setting.reg_addr,
 					reg_setting.reg_data,
 					reg_setting.reg_data_size);
+					/*
+					for(j=0; j<4; j++)
+						CDBG("-------write2 [addr:%#x][data:%#x][return:%#x]\n", reg_setting.reg_addr, reg_setting.reg_data[j], rc);
+					*/
 				if (rc < 0)
 					return rc;
 				break;
@@ -110,6 +117,9 @@ static int32_t msm_ois_write_settings(struct msm_ois_ctrl_t *o_ctrl,
 				break;
 			}
 		}
+		  break;
+		 default:
+		  CDBG("Enter [i2c_operation:%d]\n", settings[i].i2c_operation);
 		}
 
 		if (settings[i].delay > 20)
@@ -383,7 +393,8 @@ static int msm_ois_close(struct v4l2_subdev *sd,
 	int rc = 0;
 	struct msm_ois_ctrl_t *o_ctrl =  v4l2_get_subdevdata(sd);
 	CDBG("Enter\n");
-	if (!o_ctrl) {
+	if (!o_ctrl || !o_ctrl->i2c_client.i2c_func_tbl) {
+		/* check to make sure that init happens before release */
 		pr_err("failed\n");
 		return -EINVAL;
 	}
@@ -415,8 +426,12 @@ static long msm_ois_subdev_ioctl(struct v4l2_subdev *sd,
 	case VIDIOC_MSM_OIS_CFG:
 		return msm_ois_config(o_ctrl, argp);
 	case MSM_SD_SHUTDOWN:
-		msm_ois_close(sd, NULL);
-		return 0;
+		if (!o_ctrl->i2c_client.i2c_func_tbl) {
+			pr_err("o_ctrl->i2c_client.i2c_func_tbl NULL\n");
+			return -EINVAL;
+		} else {
+			return msm_ois_close(sd, NULL);
+		}
 	default:
 		return -ENOIOCTLCMD;
 	}
@@ -637,7 +652,7 @@ static int32_t msm_ois_platform_probe(struct platform_device *pdev)
 	rc = of_property_read_u32((&pdev->dev)->of_node, "qcom,cci-master",
 		&msm_ois_t->cci_master);
 	CDBG("qcom,cci-master %d, rc %d\n", msm_ois_t->cci_master, rc);
-	if (rc < 0) {
+	if (rc < 0 || msm_ois_t->cci_master >= MASTER_MAX) {
 		kfree(msm_ois_t);
 		pr_err("failed rc %d\n", rc);
 		return rc;
@@ -674,7 +689,7 @@ static int32_t msm_ois_platform_probe(struct platform_device *pdev)
 
 	cci_client = msm_ois_t->i2c_client.cci_client;
 	cci_client->cci_subdev = msm_cci_get_subdev();
-	cci_client->cci_i2c_master = MASTER_MAX;
+	cci_client->cci_i2c_master = msm_ois_t->cci_master;
 	v4l2_subdev_init(&msm_ois_t->msm_sd.sd,
 		msm_ois_t->ois_v4l2_subdev_ops);
 	v4l2_set_subdevdata(&msm_ois_t->msm_sd.sd, msm_ois_t);

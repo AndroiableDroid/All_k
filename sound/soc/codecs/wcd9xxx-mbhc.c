@@ -35,6 +35,7 @@
 #include <linux/kernel.h>
 #include <linux/gpio.h>
 #include <linux/input.h>
+#include <linux/switch.h>
 #include "wcd9320.h"
 #include "wcd9306.h"
 #include "wcd9xxx-mbhc.h"
@@ -140,6 +141,34 @@
 #define WCD9XXX_IS_IN_ZDET_ZONE_3(x) (x > WCD9XXX_ZDET_ZONE_2 ? 1 : 0)
 #define WCD9XXX_BOX_CAR_AVRG_MIN 1
 #define WCD9XXX_BOX_CAR_AVRG_MAX 10
+
+#if 0
+
+#ifdef pr_fmt 
+#undef pr_fmt
+#define pr_fmt(fmt) "<audio log> %s, %d :" fmt, __func__,__LINE__
+#else
+#define pr_fmt(fmt) "<audio log> %s, %d :" fmt, __func__,__LINE__
+#endif
+#ifdef  pr_debug
+#undef pr_debug
+#define pr_debug(fmt,...)  printk(KERN_ERR pr_fmt(fmt), ##__VA_ARGS__) 
+#else
+#define pr_debug(fmt,...)  printk(KERN_ERR pr_fmt(fmt), ##__VA_ARGS__) 
+#endif
+#endif
+
+//add for FFBM
+struct _headset {
+	struct switch_dev sdev;
+};
+
+static struct _headset headset = {
+	.sdev = {
+	.name = "h2w",
+	.state = 0,
+	},
+};
 
 static int impedance_detect_en;
 module_param(impedance_detect_en, int,
@@ -598,6 +627,11 @@ static void wcd9xxx_jack_report(struct wcd9xxx_mbhc *mbhc,
 	}
 
 	snd_soc_jack_report_no_dapm(jack, status, mask);
+
+	if((jack->jack->type & SND_JACK_HEADSET)||(jack->jack->type & SND_JACK_HEADPHONE))
+	{
+		switch_set_state(&headset.sdev, status);
+	}
 }
 
 static void __hphocp_off_report(struct wcd9xxx_mbhc *mbhc, u32 jack_status,
@@ -5338,6 +5372,7 @@ int wcd9xxx_mbhc_init(struct wcd9xxx_mbhc *mbhc, struct wcd9xxx_resmgr *resmgr,
 {
 	int ret;
 	void *core_res;
+       struct _headset *hs = &headset;
 
 	pr_debug("%s: enter\n", __func__);
 	memset(&mbhc->mbhc_bias_regs, 0, sizeof(struct mbhc_micbias_regs));
@@ -5389,6 +5424,33 @@ int wcd9xxx_mbhc_init(struct wcd9xxx_mbhc *mbhc, struct wcd9xxx_resmgr *resmgr,
 		ret = snd_jack_set_key(mbhc->button_jack.jack,
 				       SND_JACK_BTN_0,
 				       KEY_MEDIA);
+		if (ret) {
+			pr_err("%s: Failed to set code for btn-0\n",
+				__func__);
+			return ret;
+		}
+
+		ret = snd_jack_set_key(mbhc->button_jack.jack,
+				       SND_JACK_BTN_1,
+				       KEY_MEDIA);
+		if (ret) {
+			pr_err("%s: Failed to set code for btn-0\n",
+				__func__);
+			return ret;
+		}
+
+		ret = snd_jack_set_key(mbhc->button_jack.jack,
+				       SND_JACK_BTN_6,
+				       KEY_VOLUMEUP);
+		if (ret) {
+			pr_err("%s: Failed to set code for btn-0\n",
+				__func__);
+			return ret;
+		}
+
+		ret = snd_jack_set_key(mbhc->button_jack.jack,
+				       SND_JACK_BTN_7,
+				       KEY_VOLUMEDOWN);
 		if (ret) {
 			pr_err("%s: Failed to set code for btn-0\n",
 				__func__);
@@ -5482,6 +5544,12 @@ int wcd9xxx_mbhc_init(struct wcd9xxx_mbhc *mbhc, struct wcd9xxx_resmgr *resmgr,
 
 	wcd9xxx_regmgr_cond_register(resmgr, 1 << WCD9XXX_COND_HPH_MIC |
 					     1 << WCD9XXX_COND_HPH);
+
+	ret = switch_dev_register(&hs->sdev);
+	if(ret){
+		pr_err("%s: Failed to register switch\n", __func__);
+		goto err_hphr_ocp_irq;
+	}
 
 	pr_debug("%s: leave ret %d\n", __func__, ret);
 	return ret;
