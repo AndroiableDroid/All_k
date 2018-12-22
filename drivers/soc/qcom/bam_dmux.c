@@ -1160,7 +1160,7 @@ int msm_bam_dmux_close(uint32_t id)
 	if (id >= BAM_DMUX_NUM_CHANNELS)
 		return -EINVAL;
 	DBG("%s: closing ch %d\n", __func__, id);
-	if (!bam_mux_initialized)
+	if (!bam_mux_initialized || !bam_ch_is_local_open(id))
 		return -ENODEV;
 
 	read_lock(&ul_wakeup_lock);
@@ -2283,7 +2283,7 @@ static int bam_init(void)
 	a2_props.virt_addr = a2_virt_addr;
 	a2_props.virt_size = a2_phys_size;
 	a2_props.irq = a2_bam_irq;
-	a2_props.options = SPS_BAM_OPT_IRQ_WAKEUP | SPS_BAM_ATMC_MEM;
+	a2_props.options = SPS_BAM_OPT_IRQ_WAKEUP | SPS_BAM_HOLD_MEM;
 	a2_props.num_pipes = A2_NUM_PIPES;
 	a2_props.summing_threshold = A2_SUMMING_THRESHOLD;
 	a2_props.constrained_logging = true;

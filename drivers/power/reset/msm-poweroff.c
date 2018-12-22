@@ -51,19 +51,16 @@ static bool scm_deassert_ps_hold_supported;
 /* Download mode master kill-switch */
 static void __iomem *msm_ps_hold;
 static phys_addr_t tcsr_boot_misc_detect;
-#define EDL_MODE_PROP "qcom,msm-imem-emergency_download_mode"
-static void *emergency_dload_mode_addr;
-static bool scm_dload_supported;
 
 #ifdef CONFIG_MSM_DLOAD_MODE
-//#define EDL_MODE_PROP "qcom,msm-imem-emergency_download_mode"
+#define EDL_MODE_PROP "qcom,msm-imem-emergency_download_mode"
 #define DL_MODE_PROP "qcom,msm-imem-download_mode"
 
 static int in_panic;
 static void *dload_mode_addr;
 static bool dload_mode_enabled;
 static void *emergency_dload_mode_addr;
-//static bool scm_dload_supported;
+static bool scm_dload_supported;
 
 static int dload_set(const char *val, struct kernel_param *kp);
 static int download_mode = 1;
@@ -276,9 +273,6 @@ static void msm_restart_prepare(const char *cmd)
 			(in_panic || restart_mode == RESTART_DLOAD));
 #endif
 
-	need_warm_reset = (get_dload_mode() ||
-				(cmd != NULL && cmd[0] != '\0'));
-
 	if (qpnp_pon_check_hard_reset_stored()) {
 		/* Set warm reset as true when device is in dload mode
 		 *  or device doesn't boot up into recovery, bootloader or rtc.
@@ -289,17 +283,16 @@ static void msm_restart_prepare(const char *cmd)
 			strcmp(cmd, "bootloader") &&
 			strcmp(cmd, "rtc")))
 			need_warm_reset = true;
+	} else {
+		need_warm_reset = (get_dload_mode() ||
+				(cmd != NULL && cmd[0] != '\0'));
 	}
 
 	/* Hard reset the PMIC unless memory contents must be maintained. */
 	if (need_warm_reset) {
 		qpnp_pon_system_pwr_off(PON_POWER_OFF_WARM_RESET);
 	} else {
-#if 0
 		qpnp_pon_system_pwr_off(PON_POWER_OFF_HARD_RESET);
-#else
-        qpnp_pon_system_pwr_off(PON_POWER_OFF_WARM_RESET);
-#endif
 	}
 
 	if (cmd != NULL) {
@@ -464,16 +457,7 @@ static int msm_restart_probe(struct platform_device *pdev)
 	if (!np) {
 		pr_err("unable to find DT imem EDLOAD mode node\n");
 	} else {
-		emergency_dload_mode_addr = of_iomap(np, 0);
-		if (!emergency_dload_mode_addr)
-			pr_err("unable to map imem EDLOAD mode offset\n");
-	}
 
-	np = of_find_compatible_node(NULL, NULL,
-				"qcom,msm-imem-restart_reason");
-	if (!np) {
-		pr_err("unable to find DT imem restart reason node\n");
-	} else {
 		restart_reason = of_iomap(np, 0);
 		if (!restart_reason) {
 			pr_err("unable to map imem restart reason offset\n");

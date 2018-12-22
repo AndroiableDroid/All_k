@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2014,2016 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -360,23 +360,23 @@ static void msm_ispif_sel_csid_core(struct ispif_device *ispif,
 	switch (intftype) {
 	case PIX0:
 		data &= ~(BIT(1) | BIT(0));
-		data |= csid;
+		data |= (uint32_t)csid;
 		break;
 	case RDI0:
 		data &= ~(BIT(5) | BIT(4));
-		data |= (csid << 4);
+		data |= (uint32_t)(csid << 4);
 		break;
 	case PIX1:
 		data &= ~(BIT(9) | BIT(8));
-		data |= (csid << 8);
+		data |= (uint32_t)(csid << 8);
 		break;
 	case RDI1:
 		data &= ~(BIT(13) | BIT(12));
-		data |= (csid << 12);
+		data |= (uint32_t)(csid << 12);
 		break;
 	case RDI2:
 		data &= ~(BIT(21) | BIT(20));
-		data |= (csid << 20);
+		data |= (uint32_t)(csid << 20);
 		break;
 	}
 
@@ -452,9 +452,9 @@ static void msm_ispif_enable_intf_cids(struct ispif_device *ispif,
 
 	data = msm_camera_io_r(ispif->base + intf_addr);
 	if (enable)
-		data |= cid_mask;
+		data |= (uint32_t)cid_mask;
 	else
-		data &= ~cid_mask;
+		data &= ~((uint32_t)cid_mask);
 	msm_camera_io_w_mb(data, ispif->base + intf_addr);
 }
 
@@ -1068,27 +1068,16 @@ static void ispif_process_irq(struct ispif_device *ispif,
 	}
 	if (out[vfe_id].ispifIrqStatus0 &
 			ISPIF_IRQ_STATUS_RDI0_SOF_MASK) {
-                if (ispif->ispif_rdi0_debug < ISPIF_SOF_DEBUG_COUNT)
-                        pr_err("%s: RDI0 frame id: %u\n", __func__,
-                               ispif->sof_count[vfe_id].sof_cnt[RDI0]);
 		ispif->sof_count[vfe_id].sof_cnt[RDI0]++;
-                ispif->ispif_rdi0_debug++;   
 	}
 	if (out[vfe_id].ispifIrqStatus1 &
 			ISPIF_IRQ_STATUS_RDI1_SOF_MASK) {
-                if (ispif->ispif_rdi1_debug < ISPIF_SOF_DEBUG_COUNT)
-                        pr_err("%s: RDI1 frame id: %u\n", __func__,
-                                ispif->sof_count[vfe_id].sof_cnt[RDI1]);
 		ispif->sof_count[vfe_id].sof_cnt[RDI1]++;
-                ispif->ispif_rdi1_debug++;
 	}
 	if (out[vfe_id].ispifIrqStatus2 &
 			ISPIF_IRQ_STATUS_RDI2_SOF_MASK) {
-               if (ispif->ispif_rdi2_debug < ISPIF_SOF_DEBUG_COUNT)
-                       pr_err("%s: RDI2 frame id: %u\n", __func__,
-                               ispif->sof_count[vfe_id].sof_cnt[RDI2]);		
 		ispif->sof_count[vfe_id].sof_cnt[RDI2]++;
-                ispif->ispif_rdi2_debug++; 
+
 	}
 }
 
@@ -1361,9 +1350,6 @@ static long msm_ispif_subdev_ioctl(struct v4l2_subdev *sd,
 		return msm_ispif_cmd(sd, arg);
 	case MSM_SD_NOTIFY_FREEZE: {
 		ispif->ispif_sof_debug = 0;
-		ispif->ispif_rdi0_debug = 0;
-		ispif->ispif_rdi1_debug = 0;
-		ispif->ispif_rdi2_debug = 0;
 		return 0;
 	}
 	case MSM_SD_SHUTDOWN: {

@@ -648,7 +648,6 @@ static long msm_private_ioctl(struct file *file, void *fh,
 		break;
 
 	case MSM_CAM_V4L2_IOCTL_NOTIFY_FREEZE: {
-		pr_err("Notifying subdevs about potential sof freeze\n");
 		if (!list_empty(&msm_v4l2_dev->subdevs)) {
 			list_for_each_entry(msm_sd, &ordered_sd_list, list)
 				__msm_sd_notify_freeze_subdevs(msm_sd);
